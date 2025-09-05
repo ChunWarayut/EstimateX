@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0b1220;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: radial-gradient(1000px 800px at 20% 0%, rgba(56,189,248,0.18), transparent 60%),
+              radial-gradient(800px 700px at 80% 20%, rgba(168,85,247,0.18), transparent 60%),
+              var(--bg);
+  color: white;
+}
+
+.glass {
+  background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(8px);
+}
+
+.btn {
+  @apply px-3 py-2 rounded-md bg-gradient-to-br from-cyan-400 to-fuchsia-500 text-slate-900 font-semibold hover:opacity-90 transition;
+}
+
+.btn-ghost {
+  @apply px-3 py-2 rounded-md border border-white/20 text-white hover:bg-white/5 transition;
+}
+
