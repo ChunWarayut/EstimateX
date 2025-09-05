@@ -36,4 +36,8 @@ export class VoteDto {
 
   @IsString()
   userId!: string;
+
+  @IsOptional()
+  @IsString()
+  dimension?: string; // default 'point'
 }

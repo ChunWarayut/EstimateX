@@ -52,14 +52,17 @@ export class SessionsService {
   async vote(code: string, dto: VoteDto) {
     const session = await this.getByCode(code);
     // Upsert by user+session
+    const dimension = dto.dimension ?? 'point';
     const existing = await this.prisma.vote.findFirst({
-      where: { sessionId: session.id, userId: dto.userId },
+      where: { sessionId: session.id, userId: dto.userId, dimension },
+      orderBy: { createdAt: 'desc' },
     });
     const data: Prisma.VoteUncheckedCreateInput = {
       value: dto.value,
       userId: dto.userId,
       sessionId: session.id,
       hidden: true,
+      dimension,
     };
     const vote = existing
       ? await this.prisma.vote.update({ where: { id: existing.id }, data })
@@ -67,13 +70,23 @@ export class SessionsService {
     return vote;
   }
 
-  async votes(code: string, includeHidden = false) {
+  async votes(code: string, includeHidden = false, dimension?: string) {
     const session = await this.getByCode(code);
-    const votes = await this.prisma.vote.findMany({
-      where: { sessionId: session.id, ...(includeHidden ? {} : { hidden: false }) },
+    const raw = await this.prisma.vote.findMany({
+      where: { sessionId: session.id, ...(includeHidden ? {} : { hidden: false }), ...(dimension ? { dimension } : {}) },
       include: { user: true },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
     });
+    // Deduplicate by userId (keep latest) to avoid duplicates from older records
+    const seen = new Set<string>();
+    const votes = [] as typeof raw;
+    for (const v of raw) {
+      const uid = (v as any).userId as string;
+      if (!seen.has(uid)) {
+        votes.push(v);
+        seen.add(uid);
+      }
+    }
 
     // aggregate by role
     const byRole: Record<string, { count: number; avg: number; values: number[] }> = {};
@@ -105,9 +118,14 @@ export class SessionsService {
     return { ok: true };
   }
 
-  validateFacilitator(session: { facilitatorSecret?: string } | null, secret?: string) {
+  validateFacilitator(session: { facilitatorSecret?: string | null } | null, secret?: string) {
     if (!session) throw new NotFoundException('Session not found');
-    if (!secret || secret !== session.facilitatorSecret) {
+    const s = session.facilitatorSecret ?? null;
+    if (!s) {
+      // Backward compatibility: sessions created before facilitator feature
+      return;
+    }
+    if (!secret || secret !== s) {
       throw new ForbiddenException('Invalid facilitator secret');
     }
   }

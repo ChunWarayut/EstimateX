@@ -5,6 +5,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
   ConnectedSocket,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { SessionsService } from './sessions.service.js';
@@ -12,10 +13,11 @@ import { SessionsService } from './sessions.service.js';
 type PresenceUser = { id: string; name: string; role: string };
 
 @WebSocketGateway({ cors: true, namespace: '/sessions' })
-export class SessionsGateway implements OnModuleDestroy {
+export class SessionsGateway implements OnModuleDestroy, OnGatewayDisconnect {
   @WebSocketServer() server!: Server;
 
   private presence = new Map<string, Map<string, PresenceUser>>(); // code -> socketId -> user
+  private socketRoom = new Map<string, string>(); // socketId -> code
 
   constructor(private sessions: SessionsService) {}
 
@@ -24,7 +26,13 @@ export class SessionsGateway implements OnModuleDestroy {
   }
 
   private broadcastPresence(code: string) {
-    const list = Array.from(this.presence.get(code)?.values() ?? []);
+    const values = Array.from(this.presence.get(code)?.values() ?? []);
+    // Deduplicate by user.id in case multiple sockets for same user
+    const map = new Map<string, PresenceUser>();
+    for (const u of values) {
+      if (u?.id && !map.has(u.id)) map.set(u.id, u);
+    }
+    const list = Array.from(map.values());
     this.server.to(code).emit('presence:update', { code, users: list });
   }
 
@@ -38,6 +46,7 @@ export class SessionsGateway implements OnModuleDestroy {
     const room = this.presence.get(code) ?? new Map();
     room.set(client.id, user);
     this.presence.set(code, room);
+    this.socketRoom.set(client.id, code);
     this.broadcastPresence(code);
   }
 
@@ -53,15 +62,27 @@ export class SessionsGateway implements OnModuleDestroy {
       room.delete(client.id);
       this.broadcastPresence(code);
     }
+    this.socketRoom.delete(client.id);
+  }
+
+  handleDisconnect(client: Socket) {
+    const code = this.socketRoom.get(client.id);
+    if (!code) return;
+    const room = this.presence.get(code);
+    if (room && room.has(client.id)) {
+      room.delete(client.id);
+      this.broadcastPresence(code);
+    }
+    this.socketRoom.delete(client.id);
   }
 
   @SubscribeMessage('vote')
   async handleVote(
-    @MessageBody() payload: { code: string; userId: string; value: number },
+    @MessageBody() payload: { code: string; userId: string; value: number; dimension?: string },
   ) {
-    const v = await this.sessions.vote(payload.code, { userId: payload.userId, value: payload.value } as any);
-    // Broadcast updated votes (hidden/visible logic handled by client via GET or by reveal event)
-    this.server.to(payload.code).emit('votes:update', { code: payload.code, voteId: v.id });
+    const v = await this.sessions.vote(payload.code, { userId: payload.userId, value: payload.value, dimension: payload.dimension } as any);
+    // Broadcast updated votes and who voted for live feedback
+    this.server.to(payload.code).emit('votes:update', { code: payload.code, voteId: v.id, userId: v.userId, dimension: v.dimension });
   }
 
   @SubscribeMessage('reveal')
@@ -80,4 +101,3 @@ export class SessionsGateway implements OnModuleDestroy {
     this.server.to(payload.code).emit('votes:clear', { code: payload.code });
   }
 }
-

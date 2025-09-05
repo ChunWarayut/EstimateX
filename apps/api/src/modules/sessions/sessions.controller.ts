@@ -27,8 +27,12 @@ export class SessionsController {
   }
 
   @Get(':code/votes')
-  votes(@Param('code') code: string, @Query('includeHidden') includeHidden?: string) {
-    return this.sessions.votes(code, includeHidden === 'true');
+  votes(
+    @Param('code') code: string,
+    @Query('includeHidden') includeHidden?: string,
+    @Query('dimension') dimension?: string,
+  ) {
+    return this.sessions.votes(code, includeHidden === 'true', dimension);
   }
 
   @Post(':code/reveal')
