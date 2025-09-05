@@ -7,16 +7,34 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 export default function Home() {
   const [title, setTitle] = useState('');
   const [code, setCode] = useState('');
+  const [deckStr, setDeckStr] = useState('0,0.5,1,2,3,5,8,13');
+  const [deckRoleJson, setDeckRoleJson] = useState('');
   const router = useRouter();
 
   const createSession = async () => {
     if (!title.trim()) return;
+    let deck: number[] | undefined;
+    try {
+      deck = deckStr.split(',').map((s) => Number(s.trim())).filter((n) => !Number.isNaN(n));
+      if (!deck.length) deck = undefined;
+    } catch {
+      deck = undefined;
+    }
+    let roleDecks: any = undefined;
+    try {
+      roleDecks = deckRoleJson.trim() ? JSON.parse(deckRoleJson) : undefined;
+    } catch {
+      roleDecks = undefined;
+    }
     const res = await fetch(`${API}/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title })
+      body: JSON.stringify({ title, deck, roleDecks })
     });
     const data = await res.json();
+    if (data.facilitatorSecret) {
+      try { localStorage.setItem(`ex:facil:${data.code}`, data.facilitatorSecret); } catch {}
+    }
     router.push(`/session/${data.code}`);
   };
 
@@ -33,6 +51,16 @@ export default function Home() {
         <div className="flex gap-3">
           <input className="flex-1 rounded-md bg-white/5 border border-white/20 px-3 py-2" placeholder="ชื่อเรื่อง/สตอรี่" value={title} onChange={e=>setTitle(e.target.value)} />
           <button className="btn" onClick={createSession}>Create</button>
+        </div>
+        <div className="mt-4 grid md:grid-cols-2 gap-3">
+          <div>
+            <div className="text-sm text-white/70 mb-1">เด็คค่าเริ่มต้น (คั่นด้วยจุลภาค)</div>
+            <input className="w-full rounded-md bg-white/5 border border-white/20 px-3 py-2" value={deckStr} onChange={e=>setDeckStr(e.target.value)} />
+          </div>
+          <div>
+            <div className="text-sm text-white/70 mb-1">เด็คเฉพาะบทบาท (JSON)</div>
+            <input className="w-full rounded-md bg-white/5 border border-white/20 px-3 py-2" placeholder='{"DEV":[1,2,3]}' value={deckRoleJson} onChange={e=>setDeckRoleJson(e.target.value)} />
+          </div>
         </div>
       </section>
 
@@ -56,4 +84,3 @@ export default function Home() {
     </div>
   );
 }
-

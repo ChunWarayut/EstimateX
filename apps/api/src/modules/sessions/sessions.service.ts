@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateSessionDto, JoinDto, VoteDto } from './dto.js';
 import { Prisma } from '@prisma/client';
@@ -13,13 +13,30 @@ export class SessionsService {
 
   async create(dto: CreateSessionDto) {
     const code = codeGen();
+    const facilitatorSecret = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
     const session = await this.prisma.session.create({
-      data: { code, title: dto.title, description: dto.description ?? null },
+      data: {
+        code,
+        title: dto.title,
+        description: dto.description ?? null,
+        facilitatorSecret,
+        deck: dto.deck ? (dto.deck as unknown as Prisma.InputJsonValue) : undefined,
+        roleDecks: dto.roleDecks ? (dto.roleDecks as unknown as Prisma.InputJsonValue) : undefined,
+      },
     });
-    return session;
+    // Return secret to creator only once via creation response
+    return { ...session, facilitatorSecret };
   }
 
   async getByCode(code: string) {
+    const session = await this.prisma.session.findFirst({ where: { code } });
+    if (!session) throw new NotFoundException('Session not found');
+    // Do not leak facilitatorSecret in general GET
+    const { facilitatorSecret, ...safe } = session as any;
+    return safe;
+  }
+
+  async getFullByCode(code: string) {
     const session = await this.prisma.session.findFirst({ where: { code } });
     if (!session) throw new NotFoundException('Session not found');
     return session;
@@ -75,15 +92,23 @@ export class SessionsService {
   }
 
   async reveal(code: string) {
-    const session = await this.getByCode(code);
+    const session = await this.prisma.session.findFirst({ where: { code } });
+    if (!session) throw new NotFoundException('Session not found');
     await this.prisma.vote.updateMany({ where: { sessionId: session.id }, data: { hidden: false } });
     return { ok: true };
   }
 
   async clear(code: string) {
-    const session = await this.getByCode(code);
+    const session = await this.prisma.session.findFirst({ where: { code } });
+    if (!session) throw new NotFoundException('Session not found');
     await this.prisma.vote.deleteMany({ where: { sessionId: session.id } });
     return { ok: true };
   }
-}
 
+  validateFacilitator(session: { facilitatorSecret?: string } | null, secret?: string) {
+    if (!session) throw new NotFoundException('Session not found');
+    if (!secret || secret !== session.facilitatorSecret) {
+      throw new ForbiddenException('Invalid facilitator secret');
+    }
+  }
+}
