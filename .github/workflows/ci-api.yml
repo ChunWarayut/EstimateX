@@ -1,0 +1,27 @@
+name: CI API
+
+on:
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/**'
+
+jobs:
+  api:
+    name: ci/api
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm --filter @estimatex/api prisma:generate
+      - run: pnpm --filter @estimatex/api build
+

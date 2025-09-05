@@ -1,0 +1,6 @@
+# Code owners for EstimateX
+* @ChunWarayut
+apps/web/ @ChunWarayut
+apps/api/ @ChunWarayut
+.github/ @ChunWarayut
+
