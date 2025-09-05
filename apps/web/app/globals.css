@@ -31,3 +31,16 @@ body {
   @apply px-3 py-2 rounded-md border border-white/20 text-white hover:bg-white/5 transition;
 }
 
+/* Selection/feedback for voting */
+.btn-selected {
+  box-shadow: 0 0 0 2px rgba(56,189,248,0.55), 0 0 24px rgba(168,85,247,0.45);
+  transform: translateZ(0) scale(1.03);
+}
+
+@keyframes pop {
+  0% { transform: scale(0.94); }
+  60% { transform: scale(1.06); }
+  100% { transform: scale(1.0); }
+}
+.animate-pop { animation: pop 220ms ease-out; }
+

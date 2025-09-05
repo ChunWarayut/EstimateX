@@ -20,7 +20,7 @@ model Session {
   code        String   @unique
   title       String
   description String?
-  facilitatorSecret String
+  facilitatorSecret String?
   deck        Json?
   roleDecks   Json?
   createdAt   DateTime @default(now())
@@ -31,11 +31,14 @@ model Vote {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   value     Float
   hidden    Boolean  @default(true)
+  dimension String   @default("point")
   session   Session  @relation(fields: [sessionId], references: [id])
   sessionId String   @db.ObjectId
   user      User     @relation(fields: [userId], references: [id])
   userId    String   @db.ObjectId
   createdAt DateTime @default(now())
+
+  @@unique([sessionId, userId, dimension])
 }
 
 enum Role {

@@ -1,13 +1,13 @@
 "use client";
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function Home() {
   const [title, setTitle] = useState('');
   const [code, setCode] = useState('');
-  const [deckStr, setDeckStr] = useState('0,0.5,1,2,3,5,8,13');
+  const [deckStr, setDeckStr] = useState('0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,8,13');
   const [deckRoleJson, setDeckRoleJson] = useState('');
   const router = useRouter();
 
@@ -43,6 +43,23 @@ export default function Home() {
     router.push(`/session/${code.trim()}`);
   };
 
+  // Load saved deck templates
+  useEffect(() => {
+    try {
+      const savedDeck = localStorage.getItem('ex:defaultDeck');
+      if (savedDeck) setDeckStr(savedDeck);
+      const savedRoleDecks = localStorage.getItem('ex:roleDecks');
+      if (savedRoleDecks) setDeckRoleJson(savedRoleDecks);
+    } catch {}
+  }, []);
+  useEffect(() => { try { localStorage.setItem('ex:defaultDeck', deckStr); } catch {} }, [deckStr]);
+  useEffect(() => { try { localStorage.setItem('ex:roleDecks', deckRoleJson); } catch {} }, [deckRoleJson]);
+
+  const setTemplate = (t: 'fibo'|'tshirt') => {
+    if (t==='fibo') setDeckStr('0,0.5,1,2,3,5,8,13,21');
+    if (t==='tshirt') setDeckStr('1,2,3,5,8,13,20');
+  };
+
   return (
     <div className="grid md:grid-cols-2 gap-6">
       <section className="glass rounded-2xl p-6 shadow-glow">
@@ -56,6 +73,10 @@ export default function Home() {
           <div>
             <div className="text-sm text-white/70 mb-1">เด็คค่าเริ่มต้น (คั่นด้วยจุลภาค)</div>
             <input className="w-full rounded-md bg-white/5 border border-white/20 px-3 py-2" value={deckStr} onChange={e=>setDeckStr(e.target.value)} />
+            <div className="mt-2 flex gap-2 text-xs">
+              <button className="btn-ghost" onClick={()=>setTemplate('fibo')}>Fibonacci</button>
+              <button className="btn-ghost" onClick={()=>setTemplate('tshirt')}>T‑Shirt</button>
+            </div>
           </div>
           <div>
             <div className="text-sm text-white/70 mb-1">เด็คเฉพาะบทบาท (JSON)</div>
