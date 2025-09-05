@@ -20,6 +20,9 @@ model Session {
   code        String   @unique
   title       String
   description String?
+  facilitatorSecret String
+  deck        Json?
+  roleDecks   Json?
   createdAt   DateTime @default(now())
   votes       Vote[]
 }
@@ -42,4 +45,3 @@ enum Role {
   DESIGN
   OTHER
 }
-

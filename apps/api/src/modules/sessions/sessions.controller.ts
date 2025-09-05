@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
 import { SessionsService } from './sessions.service.js';
 import { CreateSessionDto, JoinDto, VoteDto } from './dto.js';
 
@@ -32,13 +32,18 @@ export class SessionsController {
   }
 
   @Post(':code/reveal')
-  reveal(@Param('code') code: string) {
-    return this.sessions.reveal(code);
+  reveal(@Param('code') code: string, @Headers('x-facilitator-secret') secret?: string) {
+    return this.sessions.getFullByCode(code).then((full) => {
+      this.sessions.validateFacilitator(full, secret);
+      return this.sessions.reveal(code);
+    });
   }
 
   @Post(':code/clear')
-  clear(@Param('code') code: string) {
-    return this.sessions.clear(code);
+  clear(@Param('code') code: string, @Headers('x-facilitator-secret') secret?: string) {
+    return this.sessions.getFullByCode(code).then((full) => {
+      this.sessions.validateFacilitator(full, secret);
+      return this.sessions.clear(code);
+    });
   }
 }
-

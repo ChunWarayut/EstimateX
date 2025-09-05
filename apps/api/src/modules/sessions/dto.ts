@@ -1,5 +1,6 @@
-import { IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsArray, IsEnum, IsNumber, IsOptional, IsString, Max, Min, ValidateNested, IsObject } from 'class-validator';
 import { Role } from '@prisma/client';
+import { Type } from 'class-transformer';
 
 export class CreateSessionDto {
   @IsString()
@@ -8,6 +9,15 @@ export class CreateSessionDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  deck?: number[];
+
+  @IsOptional()
+  @IsObject()
+  roleDecks?: Record<string, number[]>;
 }
 
 export class JoinDto {
@@ -27,4 +37,3 @@ export class VoteDto {
   @IsString()
   userId!: string;
 }
-
